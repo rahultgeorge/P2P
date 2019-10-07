@@ -30,14 +30,15 @@ bool chunkFiles(int noOfFiles,char **files)
 		assert(fstat(inputFile,myFilesStats[i])==0);
 		chunkSize=myFilesStats[i]->st_size>(1048576)? (myFilesStats[i]->st_size)/3 : (myFilesStats[i]->st_size)/2;
 		chunk=(char *)malloc(sizeof(char)*chunkSize);
-		printf("Dividing %s into chunks\n",files[i]);
+		if(DEBUG)
+		 printf("Dividing %s into chunks\n",files[i]);
 		chunkID=1;
 		bytesRead=-1;
 		while(bytesRead!=0)
 		{	
 		 bzero((void *)chunk,chunkSize);
 		 bzero((void *)chunkName,50);	
-		 bzero((void *)str,2);	
+		 bzero((void *)str,5);	
 		 bytesRead=read(inputFile,chunk,chunkSize);
 		 if(bytesRead==0)
 			 break;
@@ -46,10 +47,9 @@ bool chunkFiles(int noOfFiles,char **files)
 			 chunkSize=bytesRead;
 		 assert(bytesRead==chunkSize);
 		 memcpy(chunkName,&("Chunk_"),6);
-		 memcpy((void *)chunkName+6,files[i],sizeof(files[i])+1);
+		 memcpy(chunkName+6,files[i],strlen(files[i]));
 		 sprintf(str, "_%d", chunkID);
-		 memcpy(chunkName+6+sizeof(files[i])+1,&str,sizeof(str));
-		 chunkName[6+sizeof(files[i])+sizeof(int)+2]='\0';
+		 memcpy(chunkName+6+sizeof(files[i]),&str,sizeof(str));
 		 printf("%s\n",chunkName);
 		 chunkFile=open(chunkName,O_CREAT| O_WRONLY,0644);
 		 assert(chunkFile!=-1);
@@ -70,7 +70,6 @@ bool chunkFiles(int noOfFiles,char **files)
 unsigned char* fileChunkRequestHandler(char * fileName, uint32_t chunkName)
 {
 	unsigned char* chunk=NULL;
-	
 	return chunk;
 }
 
@@ -93,30 +92,60 @@ inline void showOptions()
 /* Number of files to register (uint16_t); and for every file, a file name (string) and its length (uint32_t) */
 bool registerRequest(uint16_t noFiles,char **files)
 {
-	int offset=0;
-	uint32_t fileNamesSize,fileSize;
-	uint16_t dummy=1717;
-	fileNamesSize=(uint32_t)sizeof(files);
-	char *request=(char *)malloc((sizeof(uint16_t)*noFiles)+fileNamesSize+(sizeof(uint32_t)*noFiles));
-	//printf("%d\n",noFiles);
+	int offset=0,fileNameSize=0,totalMessageSize=0;
+	uint32_t fileNamesSize=0,fileSize=0;
+	
+	for(int i=1;i<=noFiles;i++)
+	  fileNamesSize+=(uint32_t)strlen(files[i]);
+	printf("File Names Size %d\n",fileNamesSize);
+	
+	totalMessageSize=(sizeof(uint16_t)+sizeof(uint32_t))+(sizeof(char)*fileNamesSize)+((sizeof(uint32_t)+sizeof(int))*noFiles)+MESSAGE_HEADER_LENGTH;
+	printf("Message size: %d\n",totalMessageSize);
+	char *request=(char *)malloc(sizeof(char)*totalMessageSize);
+	bzero(request,totalMessageSize);
+	printf("Request size %s %d\n",request,strlen(request));
+	
+	
+	memcpy(request,REGISTER_REQUEST,MESSAGE_HEADER_LENGTH);
+	offset+=MESSAGE_HEADER_LENGTH;
+	
 	memcpy(request+offset,&noFiles,sizeof(uint16_t));
 	offset+=sizeof(uint16_t);
+	printf("No of Files %d\n",noFiles);
 	
-	for(int i=1;i<noFiles;i++)
-	{
-	  fileSize=(uint32_t)(myFilesStats[i]->st_size);
-	  memcpy(request+offset,&fileSize,sizeof(uint32_t));
-	  offset+=sizeof(uint32_t);
-  	  memcpy(request+offset,files[i],sizeof(files[i])+1);
-  	  offset+=(sizeof(files[i])+1);
-
-	}
 	memcpy(request+offset,&(fileNamesSize),sizeof(uint32_t));
 	offset+=sizeof(uint32_t);
-	request[offset+1]="\0";
-	// printf("Request %s\n",request);
+	printf("File Names Size %d\n",fileNamesSize);
+	
+	
+    for(int i=1;i<=noFiles;i++)
+ 	{
+
+	  /*File name size */
+    fileNameSize=strlen(files[i]);
+    memcpy(request+offset,&fileNameSize,sizeof(int));
+  	offset+=sizeof(int);
+	printf("File name Size %d \n",fileNameSize);
+	
+	  /*File name*/
+	memcpy(request+offset,files[i],strlen(files[i])+1);
+	offset+=(strlen(files[i])+1);
+  	printf("File name %s\n",files[i]);
+
+    /*File size*/
+	fileSize=(uint32_t)(myFilesStats[i]->st_size);
+	memcpy(request+offset,&fileSize,sizeof(uint32_t));
+	offset+=sizeof(uint32_t);
+	printf("File size %d\n",fileSize);
+
+	}
+
+	request[offset+1]='\0';
+	printf("Request %s %d\n",request,strlen(request));
     printf("Sending register request\n");
-	send(peerToServerFD,request,sizeof(request),0);
+	int bytesSent=write(peerToServerFD,request,totalMessageSize);
+	assert(bytesSent>0);
+	printf("Bytes sent: %d\n",bytesSent);
 	return true;
 }
 
@@ -145,41 +174,32 @@ int main(int argc, char **argv)
  	    {
  		  if(DEBUG)
  		   printf("Client Connected\n");
-
  		  /*Options to view file list, download a file and view download status*/
- 		  if(registerRequest(argc,argv))
- 		  {
- 		   while(1)
- 		    {
- 			  //showOptions();
- 			  scanf("%d",&option);
- 			  switch(option)
- 		      {
- 			    case 1:
- 			          viewFileList();
+   		  if(registerRequest(argc-1,argv))
+		  		  {
+					  	   while(1)
+					  		    {
+								//	showOptions();
+									 			  //scanf("%d",&option);												   			  
+												  switch(option)
+												  {
+  			    case 1:
+  			          //viewFileList();
  			          break;
- 			    case 2:
+  			    case 2:
 
- 	                  break;
+  	                  break;
  			    case 3:
  	                  break;
  			    case 4:
- 	                  break;
- 			    default:
- 			          cleanUp();
+  	                  break;
+  			    default:
+  			          //cleanUp();
  					  break;
- 		    }
+   		    }
  	      }
-
-
-
- 	     
-
- 	   
-
-
- 	       /* Write a response to the server */
- 	      }
+   	       /* Write a response to the server */
+	  }
 
  	    }
 

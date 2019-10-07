@@ -38,10 +38,69 @@ void initalize()
 
 
 
+
+void registerRequestHandler(char* request)
+{
+	int offset=MESSAGE_HEADER_LENGTH,fileNameSize=0;
+	char** fileNames;
+	uint16_t noOfFiles;
+	uint32_t fileNamesSize,*fileSizes;
+	
+	memcpy(&noOfFiles,request+offset,sizeof(uint16_t));
+	offset+=sizeof(uint16_t);
+	printf("No of files: %d \n",noOfFiles);
+	assert(noOfFiles!=0);
+	
+	fileSizes=malloc(sizeof(uint32_t)*noOfFiles);
+	
+	memcpy(&fileNamesSize,request+offset,sizeof(uint32_t));
+	offset+=sizeof(uint32_t);
+	printf("File names size %d \n",fileNamesSize);
+	
+	fileNames=malloc(sizeof(char *) * noOfFiles);
+	for(int i=1;i<=noOfFiles;i++)
+	{
+		
+      memcpy(&fileNameSize,request+offset,sizeof(int));
+  	  offset+=sizeof(int);
+	  printf("File name size %d \n",fileNameSize);
+	  
+	  fileNames[i-1]=malloc((sizeof(char)*fileNameSize)+1);
+  	  memcpy(fileNames[i-1],request+offset,fileNameSize+1);
+  	  offset+=(fileNameSize+1);
+	  printf("File name: %s \n",fileNames[i-1]);
+	  	  
+		uint32_t temp;  
+	  memcpy(&temp,request+offset,sizeof(uint32_t));
+	  offset+=sizeof(uint32_t);	  
+	  printf("File size: %d \n",temp);
+	  
+	}
+}
+
+
+void messageHandler(char* message)
+{
+	char* messageType=malloc(sizeof(char)*MESSAGE_HEADER_LENGTH);
+	memcpy(messageType,message,MESSAGE_HEADER_LENGTH);
+	if(strcmp(messageType,REGISTER_REQUEST)==0)
+	{
+		printf("%s \n",messageType);	
+		registerRequestHandler(message);
+	}
+	else if(strcmp(messageType,FILE_LIST_REQUEST)==0)
+		return;
+	
+	
+	
+}
+
 int main(int argc, char **argv)
 {
+	
+	char* buf=malloc(sizeof(char)*MAX_MESSAGE_SIZE);
+    int len = 0;
 	initalize();
-	char* buf=malloc(sizeof(char)*2048);
 	while(1)
 	{
 	  FD_ZERO(&readfds);  
@@ -72,13 +131,16 @@ int main(int argc, char **argv)
 		peerFD=accept(serverSocketFD,( struct sockaddr *) & clientAddress, &clientLength);
 		if(peerFD>=0)
 		{
-		    int len = 0;
-			ioctl(peerFD, FIONREAD, &len);
-			if (len > 0) 
-			 { len = read(peerFD, buf, len);
-				 buf[len]='\0';
-		  printf("Received something %s\n",buf);	
-	  }
+			while(len==0)
+				ioctl(peerFD, FIONREAD, &len);
+			
+		    len = read(peerFD, buf, len);
+			if(len>0)
+		   { printf("Received something %s\n",buf);	
+		    messageHandler(buf);
+		   }
+		  
+	     
           for (int i = 0; i < MAX_CLIENTS; i++)   
 		   {   
 			//if position is empty  
