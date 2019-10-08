@@ -73,6 +73,15 @@ unsigned char* fileChunkRequestHandler(char * fileName, uint32_t chunkName)
 	return chunk;
 }
 
+
+bool requestForFileList()
+{
+	printf("Requesting for the file list\n");
+	int bytes=write(peerToServerFD,FILE_LIST_REQUEST,MESSAGE_HEADER_LENGTH);
+	printf("Bytes written %d\n",bytes);
+}
+
+
 void fileChunkReply()
 {
 	
@@ -149,6 +158,11 @@ bool registerRequest(uint16_t noFiles,char **files)
 	return true;
 }
 
+
+
+
+
+
 void viewFileList()
 {
 	//send(peerToServerFD,FILE_LIST_REQUEST,sizeof(FILE_LIST_REQUEST),0);
@@ -175,8 +189,10 @@ int main(int argc, char **argv)
  		  if(DEBUG)
  		   printf("Client Connected\n");
  		  /*Options to view file list, download a file and view download status*/
-   		  if(registerRequest(argc-1,argv))
+   		  if(registerRequest(argc-1,argv)==true)
 		  		  {
+					  printf("Successfully registered\n");
+					  requestForFileList();
 					  	   while(1)
 					  		    {
 								//	showOptions();

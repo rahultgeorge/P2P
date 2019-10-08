@@ -5,6 +5,7 @@
 int serverSocketFD,active,sd,max_sd;
 int peerFD,client_socket[MAX_CLIENTS];
 unsigned int clientLength;
+char  **fileList;
 struct sockaddr_in serverAddress,clientAddress;
 char buffer[14];   
 fd_set readfds, writefds;
@@ -13,31 +14,52 @@ fd_set readfds, writefds;
 /* Creates a server socket, binds and starts listening on that port*/
 void initalize()
 {
-    int flag;
+    int flag,on=1;
     serverSocketFD=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
     assert(serverSocketFD!=0);
 	if(DEBUG)
      printf("Server Socket Created\n"); 
 		
-    memset(&serverAddress,'\0',sizeof(serverAddress));
+    
+	
+	flag= setsockopt(serverSocketFD, SOL_SOCKET,  SO_REUSEADDR,(char *)&on, sizeof(on));
+	assert(flag>=0);	
+	
+    flag=ioctl(serverSocketFD, FIONBIO, (char *)&on);
+	assert(flag>=0);	
+  			   
+	
+	memset(&serverAddress,'\0',sizeof(serverAddress));
     serverAddress.sin_family=DOMAIN;
 	inet_aton("127.0.0.1", &serverAddress.sin_addr.s_addr);
     serverAddress.sin_port=htons(PORT);
-	
     clientLength=sizeof(clientAddress); 
+	
+	
+	
 	
 	flag=bind(serverSocketFD,(const struct sockaddr *)&serverAddress,sizeof(serverAddress));
 	assert(flag==0);
 	if(DEBUG)
      printf("Server Socket Bound\n");  
-    flag=listen(serverSocketFD,5);
+    flag=listen(serverSocketFD,32);
 	assert(flag==0);
 	if(DEBUG)
      printf("Server Socket Listening\n"); 
 }
 
 
+void fileRequestHandler(char *request)
+{
+	
+	printf("Requested for files\n");
+	
+}
 
+void fileLocationRequestHandler(char* request)
+{
+	printf("Requested file locations\n");
+}	
 
 void registerRequestHandler(char* request)
 {
@@ -69,12 +91,11 @@ void registerRequestHandler(char* request)
   	  memcpy(fileNames[i-1],request+offset,fileNameSize+1);
   	  offset+=(fileNameSize+1);
 	  printf("File name: %s \n",fileNames[i-1]);
-	  	  
-		uint32_t temp;  
-	  memcpy(&temp,request+offset,sizeof(uint32_t));
+	  	  	 
+	  memcpy(&fileSizes[i],request+offset,sizeof(uint32_t));
 	  offset+=sizeof(uint32_t);	  
-	  printf("File size: %d \n",temp);
-	  
+	  printf("File size: %d \n",fileSizes[i]);
+	   fileSizes[i]=0;  
 	}
 }
 
@@ -84,15 +105,11 @@ void messageHandler(char* message)
 	char* messageType=malloc(sizeof(char)*MESSAGE_HEADER_LENGTH);
 	memcpy(messageType,message,MESSAGE_HEADER_LENGTH);
 	if(strcmp(messageType,REGISTER_REQUEST)==0)
-	{
-		printf("%s \n",messageType);	
 		registerRequestHandler(message);
-	}
 	else if(strcmp(messageType,FILE_LIST_REQUEST)==0)
-		return;
-	
-	
-	
+		fileRequestHandler(message);
+	else if(strcmp(messageType,FILE_LOCATION_REQUEST)==0)
+		fileRequestHandler(message);
 }
 
 int main(int argc, char **argv)
@@ -101,12 +118,14 @@ int main(int argc, char **argv)
 	char* buf=malloc(sizeof(char)*MAX_MESSAGE_SIZE);
     int len = 0;
 	initalize();
+    FD_ZERO(&readfds);  
+    FD_ZERO(&writefds);  
+    FD_SET(serverSocketFD, &readfds); 
+    FD_SET(serverSocketFD, &writefds); 
+  
 	while(1)
 	{
-	  FD_ZERO(&readfds);  
-	  FD_ZERO(&writefds);  
-	  FD_SET(serverSocketFD, &readfds); 
-	  FD_SET(serverSocketFD, &writefds); 
+	
 	    
 	  max_sd = serverSocketFD;   
       //add child sockets to set  
@@ -128,6 +147,8 @@ int main(int argc, char **argv)
 	  active=select(max_sd+1,&readfds,&writefds,NULL,NULL);   
 	  if(FD_ISSET(serverSocketFD,&readfds))
 	  {
+		printf("READ FD IS SET\n");
+		  
 		peerFD=accept(serverSocketFD,( struct sockaddr *) & clientAddress, &clientLength);
 		if(peerFD>=0)
 		{
