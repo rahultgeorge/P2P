@@ -46,6 +46,9 @@
 #define MAX_MESSAGE_SIZE 2048
 
 
+#define MAX_P2P_MESSAGE_SIZE 1024*1024
+
+
 /* The functions accepts a list of files
  * and chunks the said files.
  */

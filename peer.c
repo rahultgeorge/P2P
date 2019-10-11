@@ -127,7 +127,7 @@ bool chunkFiles(int noOfFiles,char **files)
 		 memcpy(chunkName,&("Chunk_"),6);
 		 memcpy(chunkName+6,files[i],strlen(files[i]));
 		 sprintf(str, "_%d", chunkID);
-		 memcpy(chunkName+6+sizeof(files[i]),&str,sizeof(str));
+		 memcpy(chunkName+6+strlen(files[i]),&str,sizeof(str));
 		 printf("%s\n",chunkName);
 		 chunkFile=open(chunkName,O_CREAT| O_WRONLY,0644);
 		 assert(chunkFile!=-1);
@@ -160,7 +160,11 @@ void fileChunkRequestHandler(char * fileName, uint32_t chunkName)
 }
 
 
- 
+void showDownloadStatus()
+{
+	
+}
+
 
 
 
@@ -174,7 +178,9 @@ static inline void  showOptions()
 bool registerRequest(uint16_t noFiles,char **files)
 {
 	int offset=0,fileNameSize=0,totalMessageSize=0;
+	int expectedBitMapReply=0,bitMapReply=-1;
 	uint32_t fileNamesSize=0,fileSize=0;
+	char reply[MAX_MESSAGE_SIZE];
 	
 	for(int i=1;i<=noFiles;i++)
 	  fileNamesSize+=(uint32_t)strlen(files[i]);
@@ -201,7 +207,6 @@ bool registerRequest(uint16_t noFiles,char **files)
 	
     for(int i=1;i<=noFiles;i++)
  	{
-
 	  /*File name size */
     fileNameSize=strlen(files[i]);
     memcpy(request+offset,&fileNameSize,sizeof(int));
@@ -218,7 +223,8 @@ bool registerRequest(uint16_t noFiles,char **files)
 	memcpy(request+offset,&fileSize,sizeof(uint32_t));
 	offset+=sizeof(uint32_t);
 	printf("File size %d\n",fileSize);
-
+    expectedBitMapReply |= 1UL << (i-1);
+	
 	}
 
 	request[offset+1]='\0';
@@ -227,6 +233,17 @@ bool registerRequest(uint16_t noFiles,char **files)
 	int bytesSent=write(peerToServerFD,request,totalMessageSize);
 	assert(bytesSent>0);
 	printf("Bytes sent: %d\n",bytesSent);
+	
+	bzero(reply,MAX_MESSAGE_SIZE);
+	offset=0;
+	/*Wait for reply*/
+    recv(peerToServerFD,reply,MAX_MESSAGE_SIZE,0);
+	printf("Registered successfully %d\n",expectedBitMapReply);
+    offset+=MESSAGE_HEADER_LENGTH;
+	//     memcpy(&bitMapReply,reply+offset,sizeof(int));
+	// if(bitMapReply!=expectedBitMapReply)
+	//  printf("Registered Successfully %d\n",bitMapReply);
+	
 	return true;
 }
 
@@ -255,9 +272,7 @@ void fileLocationRequest(char* fileName)
 	offset+=strlen(fileName);
 	
 	printf("Sending %s\n",FILE_LOCATION_REQUEST);
-	
 	send(peerToServerFD,FILE_LIST_REQUEST,sizeof(FILE_LIST_REQUEST),0);	
-	
 }
 
 
@@ -305,9 +320,11 @@ int main(int argc, char **argv)
 					  printf("Specify file name\n");
 					  scanf("%s",fileName);	  
 					  fileLocationRequest(fileName);
+					  //requestPeers
   	                  break;
- 			          case 3:
 					  
+ 			          case 3:
+					  showDownloadStatus();
  	                  break;
  			         
 					  case 4:
