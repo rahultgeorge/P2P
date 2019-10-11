@@ -2,13 +2,11 @@
 
 #include "core.h"
 
-int serverSocketFD,active,sd,max_sd;
-int peerFD,client_socket[MAX_CLIENTS];
+int serverSocketFD;
 unsigned int clientLength;
 struct sockaddr_in serverAddress,clientAddress;
-char buffer[14];   
-fd_set readfds, writefds;
-
+static pthread_t *peerThreads;
+//const char* registerReply;
 
 /* Creates a server socket, binds and starts listening on that port*/
 void initalize()
@@ -36,10 +34,7 @@ void initalize()
      printf("Server Socket Listening\n"); 
 }
 
-
-
-
-void registerRequestHandler(char* request)
+void registerRequestHandler(char* request,char* reply)
 {
 	int offset=MESSAGE_HEADER_LENGTH,fileNameSize=0;
 	char** fileNames;
@@ -51,7 +46,7 @@ void registerRequestHandler(char* request)
 	printf("No of files: %d \n",noOfFiles);
 	assert(noOfFiles!=0);
 	
-	fileSizes=malloc(sizeof(uint32_t)*noOfFiles);
+	fileSizes=(uint32_t*)malloc(sizeof(uint32_t)*noOfFiles);
 	
 	memcpy(&fileNamesSize,request+offset,sizeof(uint32_t));
 	offset+=sizeof(uint32_t);
@@ -70,89 +65,108 @@ void registerRequestHandler(char* request)
   	  offset+=(fileNameSize+1);
 	  printf("File name: %s \n",fileNames[i-1]);
 	  	  
-		uint32_t temp;  
-	  memcpy(&temp,request+offset,sizeof(uint32_t));
+	  memcpy(&fileSizes[i],request+offset,sizeof(uint32_t));
 	  offset+=sizeof(uint32_t);	  
-	  printf("File size: %d \n",temp);
+	  printf("File size: %d \n",fileSizes[i]);
 	  
 	}
+	
+	//Reply here?
+	/*Insert into DB*/
+	
+	
+	/*reply*/
+	 offset=0;
+	 memcpy(reply+offset,REGISTER_REPLY,MESSAGE_HEADER_LENGTH);
+	 offset+=MESSAGE_HEADER_LENGTH;
+	 sprintf(reply+offset, "_%d", noOfFiles);
+	
 }
 
 
-void messageHandler(char* message)
+void fileListRequestHandler(char* reply)
+{
+	
+}
+
+void fileLocationRequestHandler(char* request,char* reply)
+{
+	printf("Received a file location request \n");
+	int totalMessageSize=0,offset=0;
+	int fileNameSize=0;
+    
+	
+	offset+=MESSAGE_HEADER_LENGTH;
+	
+	memcpy(&fileNameSize,request+offset,sizeof(int));
+	offset+=sizeof(int);
+	char fileName[fileNameSize];
+	
+	memcpy(fileName,request+offset,fileNameSize);
+	offset+=strlen(fileName);
+	
+	printf("Received a file location request for file %s \n",fileName);
+		
+}
+
+void chunkRegisterHandler(char* message, char* reply)
+{
+	
+}
+
+void messageHandler(char* message,char* reply)
 {
 	char* messageType=malloc(sizeof(char)*MESSAGE_HEADER_LENGTH);
 	memcpy(messageType,message,MESSAGE_HEADER_LENGTH);
+	printf("Request received %s \n",messageType);	
+	
 	if(strcmp(messageType,REGISTER_REQUEST)==0)
-	{
-		printf("%s \n",messageType);	
-		registerRequestHandler(message);
-	}
+		registerRequestHandler(message,reply);
 	else if(strcmp(messageType,FILE_LIST_REQUEST)==0)
-		return;
-	
-	
-	
+		fileListRequestHandler(reply);	
+	else if(strcmp(messageType,FILE_LOCATION_REQUEST)==0)
+		fileLocationRequestHandler(message,reply);
+	else if(strcmp(messageType,CHUNK_REGISTER_REQUEST)==0)
+		chunkRegisterHandler(message,reply);
+	else
+		printf("Invalid message\n");
 }
+
+
+void* peerConnectionHandler(void* arg)
+{
+	int newSocket=*((int *)arg);
+	char message[MAX_MESSAGE_SIZE];
+	char reply[MAX_MESSAGE_SIZE];
+		
+	printf("New peer connected: %d\n",newSocket);
+	while(1)
+	{	
+	 memset(message, '\0',MAX_MESSAGE_SIZE);
+	 //Blocking call
+	 recv(newSocket , message , MAX_MESSAGE_SIZE , 0);
+	 messageHandler(message,reply);
+	 printf("Reply %s\n",reply);
+	 send(newSocket,reply,MAX_MESSAGE_SIZE,0);
+    }
+	return NULL;
+}
+
+
 
 int main(int argc, char **argv)
 {
-	
 	char* buf=malloc(sizeof(char)*MAX_MESSAGE_SIZE);
-    int len = 0;
+    int len = 0,newSocket=0,flag=0,i=0;
+	peerThreads=malloc(sizeof(pthread_t)*MAX_CLIENTS);
 	initalize();
 	while(1)
 	{
-	  FD_ZERO(&readfds);  
-	  FD_ZERO(&writefds);  
-	  FD_SET(serverSocketFD, &readfds); 
-	  FD_SET(serverSocketFD, &writefds); 
-	    
-	  max_sd = serverSocketFD;   
-      //add child sockets to set  
-	  for (int i = 0 ; i < MAX_CLIENTS ; i++)   
-	  {   
-	   //socket descriptor  
-	   sd = client_socket[i];     
-	   //if valid socket descriptor then add to read list  
-	   if(sd > 0)   
-	    { 
-			FD_SET( sd , &readfds);  
-			
-		}	 
-       //highest file descriptor number, need it for the select function  
-	   if(sd > max_sd)   
-	     max_sd = sd;   
-	  }   
-	   
-	  active=select(max_sd+1,&readfds,&writefds,NULL,NULL);   
-	  if(FD_ISSET(serverSocketFD,&readfds))
-	  {
-		peerFD=accept(serverSocketFD,( struct sockaddr *) & clientAddress, &clientLength);
-		if(peerFD>=0)
-		{
-			while(len==0)
-				ioctl(peerFD, FIONREAD, &len);
-			
-		    len = read(peerFD, buf, len);
-			if(len>0)
-		   { printf("Received something %s\n",buf);	
-		    messageHandler(buf);
-		   }
-		  
-	     
-          for (int i = 0; i < MAX_CLIENTS; i++)   
-		   {   
-			//if position is empty  
-			if( client_socket[i] == 0 )   
-			 {   
-			   client_socket[i] = peerFD;   
-			   printf("Adding to list of sockets as %d\n" , i);   
-			   break;   
-			 }   
-		   } 
-		 }
-	  }	
+	 newSocket=accept(serverSocketFD,( struct sockaddr *) & clientAddress, &clientLength); 
+	 assert(newSocket!=-1);
+	 flag=pthread_create(&peerThreads[i],NULL,&peerConnectionHandler,&newSocket);
+	 assert(flag==0);
+	 ++i;
     }
     return 0; 
 
