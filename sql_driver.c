@@ -7,40 +7,6 @@
 #include "mysqldriver.h"
 
 
-int callback(void *NotUsed, int argc, char **argv, char **azColName) 
-{ 
-	//     NotUsed = 0;
-	// int queryType=-1;
-	// int number=-1;
-	//
-	// if(strncmp(azColName[1],"COUNT",5)==0)
-	// {
-	//     number=count;
-	//     myFileList->noFiles=number;
-	// 	myFileList->files=malloc(sizeof(char)*20*(myFileList->noFiles));
-	// 	myFileList->fileSizes=malloc(sizeof(int)*(myFileList->noFiles));
-	// }
-	//
-	// if(strncmp(azColName[1],"FILE_NAME",9)==0)
-	// {
-	// 	queryType=0;
-	//
-	// }
-	//     for (int i = 0; i < argc; i++) {
-	//
-	//         printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-	// 	if(queryType==0)
-	// 	{
-	// 		myFiles->files[]
-	// 	}
-	//     }
-	//
-	//     printf("\n");
-    
-    return 0;
-}
-
-
 /*0 success, -1 failure*/
 int insertChunk(int chunkID,char* fileName,char* chunkName,int size,char* ipAddress,int port)
 {
@@ -77,15 +43,22 @@ int insertIntoFileList(char* fileName,int size,char* ipAddress,int port)
 		int chunkID=-1;
 	    int rc = sqlite3_open("P2P.db", &db);
 		char chunkName[50];
+		int chunkSize;
 		char str[5];
-		int i;
+		int i,bytesLeft=-1;
+		
 		
 		if(size>1048576)
-			numberOfChunks=3;
+		{	numberOfChunks=3+(size%3!=0 ? 1 : 0);
+		    chunkSize=size/3;
+		}
 		else
-			numberOfChunks=2;
-		
+		{	numberOfChunks=2+(size%2);
+			chunkSize=size/2;
+			
+		}
 		printf("Updating the server file list\n");
+		bytesLeft=size;
 		/*Insert into the chunks table*/
 		for(i=1;i<=numberOfChunks;i++)
 		{	
@@ -95,7 +68,11 @@ int insertIntoFileList(char* fileName,int size,char* ipAddress,int port)
 	        memcpy(chunkName+6,fileName,strlen(fileName));
 	        sprintf(str, "_%d", chunkID);
    		    memcpy(chunkName+6+strlen(fileName),&str,sizeof(str));	
-	        insertChunk(chunkID,fileName,chunkName,size,ipAddress,port);
+			if(bytesLeft>=chunkSize)
+	         insertChunk(chunkID,fileName,chunkName,chunkSize,ipAddress,port);
+			else
+   	         insertChunk(chunkID,fileName,chunkName,bytesLeft,ipAddress,port);	
+			bytesLeft-=chunkSize;
 	    }
 		
         asprintf(&query, "insert into FILES (FILE_NAME,SIZE,IP_ADDRESS,PORT) values ('%s',%d,'%s',%d);",fileName,size,ipAddress,port);
