@@ -468,7 +468,7 @@ void fileLocationRequest(char* fileName)
 		offset+=sizeof(int);
 		
 		printf("Chunk id %d, file name %s chunk name %s \n", chunkID, fileName, chunkName);	
-		requestForFileChunk(fileName,chunkID,ipAddress,port);
+		requestForFileChunk(fileName,chunkID,ipAddress,P2P_PORT);
 	}
 	
 
@@ -479,6 +479,8 @@ int main(int argc, char **argv)
 	
 	    int option=-1,flag=-1;
 		char fileName[50];
+		
+		
 		pthread_mutex_init(&printfLock,NULL);
 		
 	    peerToServerFD=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
@@ -491,51 +493,50 @@ int main(int argc, char **argv)
 	    chunkFiles(argc,argv);
 	    peerThread=malloc(sizeof(pthread_t));
 		flag=pthread_create(peerThread,NULL,&peerListenerThreadHandler,NULL);
-		display("Peer list");
 		assert(flag==0);
-		while(1);
 	
- 	//
- 	// 	if(connect(peerToServerFD,(struct sockaddr *)&serverAddress,sizeof(serverAddress))==0)
- 	//     {
- 	// 	  if(DEBUG)
- 	// 	   printf("Peer Connected to Server\n");
- 	// 	  /*Options to view file list, download a file and view download status*/
- 	//    		  if(registerRequest(argc-1,argv)==true)
- 	// 		  		  {
- 	// 					while(1)
- 	// 				    {
- 	// 					showOptions();
- 	// 					scanf("%d",&option);
- 	// 					switch(option)
- 	// 				    {
- 	//   			          case 1:
- 	// 					  //Requesting for the file list
- 	//   			          fileListRequest();
- 	// 		               break;
- 	//
- 	//   			          case 2:
- 	// 					  //Download a file
- 	// 					  printf("Specify file name\n");
- 	// 					  scanf("%s",fileName);
- 	// 					  fileLocationRequest(fileName);
- 	//   	                  break;
- 	//
- 	// 		              case 3:
- 	// 					  showDownloadStatus();
- 	//                       break;
- 	//
- 	// 					  case 4:
- 	//   	                  break;
- 	//
- 	// 					  default:
- 	//   			          //cleanUp();
- 	// 				  break;
- 	//    		            }
- 	//             }
- 	// 	  }
- 	//
- 	// }
+ 	
+ 		if(connect(peerToServerFD,(struct sockaddr *)&serverAddress,sizeof(serverAddress))==0)
+ 	    {
+	  	
+ 		  if(DEBUG)
+ 		   printf("Peer Connected to Server\n");
+ 		  /*Options to view file list, download a file and view download status*/
+ 	   		  if(registerRequest(argc-1,argv)==true)
+ 			  		  {
+ 						while(1)
+ 					    {
+ 						showOptions();
+ 						scanf("%d",&option);
+ 						switch(option)
+ 					    {
+ 	  			          case 1:
+ 						  //Requesting for the file list
+ 	  			          fileListRequest();
+ 			               break;
+
+ 	  			          case 2:
+ 						  //Download a file
+ 						  printf("Specify file name\n");
+ 						  scanf("%s",fileName);
+ 						  fileLocationRequest(fileName);
+ 	  	                  break;
+
+ 			              case 3:
+ 						  showDownloadStatus();
+ 	                      break;
+
+ 						  case 4:
+ 	  	                  break;
+
+ 						  default:
+ 	  			          //cleanUp();
+ 					  break;
+ 	   		            }
+ 	            }
+ 		  }
+
+ 	}
 
         return 0; 
 }

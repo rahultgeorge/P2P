@@ -80,7 +80,7 @@ void registerRequestHandler(char* request,char* reply,int peerSocketFD)
 	 // bitMapReply |= 1UL << (i-1); //Mark as succesfull
 	  
 	  rc=getpeername(peerSocketFD, (struct sockaddr *)&addr, &addr_size);
-	  memcpy(ipAddress, inet_ntoa(addr.sin_addr),strlen(inet_ntoa(addr.sin_addr)));
+	  memcpy(ipAddress, inet_ntoa(addr.sin_addr),strlen(inet_ntoa(addr.sin_addr))+1);
 	  
 	  printf("IP address: %s Port: %d \n",ipAddress,ntohs(addr.sin_port));
 	  /*Insert into DB*/

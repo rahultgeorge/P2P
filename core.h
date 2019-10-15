@@ -21,7 +21,7 @@
 #define PROTOCOL 0
 #define MAX_CLIENTS 100
 
-#define P2P_PORT 60001
+#define P2P_PORT 60002
 
 
 #define MESSAGE_HEADER_LENGTH 12
