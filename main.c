@@ -77,12 +77,12 @@ void registerRequestHandler(char* request,char* reply,int peerSocketFD)
 	  offset+=sizeof(uint32_t);	  
 	  printf("File size: %d \n",fileSizes[i-1]);
 	  
-	  bitMapReply |= 1UL << (i-1); //Mark as succesfull
+	 // bitMapReply |= 1UL << (i-1); //Mark as succesfull
 	  
 	  rc=getpeername(peerSocketFD, (struct sockaddr *)&addr, &addr_size);
 	  memcpy(ipAddress, inet_ntoa(addr.sin_addr),strlen(inet_ntoa(addr.sin_addr)));
 	  
-	  printf("IP address: %s\n",ipAddress);
+	  printf("IP address: %s Port: %d \n",ipAddress,ntohs(addr.sin_port));
 	  /*Insert into DB*/
 	  insertIntoFileList(fileNames[i-1],fileSizes[i-1],ipAddress,P2P_PORT);
 	  

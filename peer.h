@@ -27,7 +27,7 @@
 #define SERVER_LEN 9
 #define CHUNK_SIZE 524288
 
-#define P2P_PORT 60022
+//#define P2P_PORT 60022 Peer listens dynamically on a port
 #define MAX_CLIENTS 100
 
 
