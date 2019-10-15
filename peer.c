@@ -276,7 +276,7 @@ void* peerDownloadThreadHandler(void* arg)
 	
   
 	    printf("Downloading the chunk %s \n",chunkName);	
-		downloadedChunk=open(chunkName,O_CREAT | O_APPEND);
+		downloadedChunk=open(chunkName,O_CREAT | O_APPEND| O_WRONLY, 0644);
 		assert(downloadedChunk!=-1);
 		while((num=read(p2pFD,buffer,size))!=-1)
 		{
