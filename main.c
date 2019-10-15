@@ -139,6 +139,7 @@ void messageHandler(char* message,char* reply,int peerSocketFD)
 {
 	char* messageType=malloc(sizeof(char)*MESSAGE_HEADER_LENGTH);
 	memcpy(messageType,message,MESSAGE_HEADER_LENGTH);
+
 	printf("Request received %s \n",messageType);	
 	bzero(reply,MAX_MESSAGE_SIZE);
 	
@@ -152,6 +153,7 @@ void messageHandler(char* message,char* reply,int peerSocketFD)
 		chunkRegisterHandler(message,reply);
 	else
 		printf("Invalid message\n");
+   
 }
 
 
@@ -167,10 +169,14 @@ void* peerConnectionHandler(void* arg)
 	 memset(message, '\0',MAX_MESSAGE_SIZE);
 	 //Blocking call
 	 recv(newSocket , message , MAX_MESSAGE_SIZE , 0);
-	 messageHandler(message,reply,newSocket);
+	 if(strlen(message)!=0)
+	  messageHandler(message,reply,newSocket);
 	 //Blocking call
-	 printf("Reply sent: %s\n",reply);
-	 send(newSocket,reply,MAX_MESSAGE_SIZE,0);
+	 if(strlen(reply)!=0 && strlen(message)!=0)
+	  {
+	   printf("Reply sent: %s\n",reply);
+	   send(newSocket,reply,MAX_MESSAGE_SIZE,0);
+      }
     }
 	return NULL;
 }
