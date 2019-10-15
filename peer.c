@@ -220,13 +220,14 @@ void* peerDownloadThreadHandler(void* arg)
 	char request[MAX_MESSAGE_SIZE];
 	int p2pFD=0;
 	/*We can actually read the chunk id and file name from arg*/
-	int chunkID;
+	int chunkID,fileNameSize;
 	int downloadedChunk;
-	int num=-1;
+	int num=-1,offset=0;
 	int size=(1024);
 	char buffer[1024];
 	char str[5];
 	char* fileName;
+	char chunkName[50];
 	struct FileChunkRequest* fileChunkRequest;
 	
 	fileChunkRequest=(struct FileChunkRequest *)arg;
@@ -234,9 +235,28 @@ void* peerDownloadThreadHandler(void* arg)
 	fileName=fileChunkRequest->fileName;
 	chunkID=fileChunkRequest->chunkID;
 	p2pFD=fileChunkRequest->p2pFD;
+	fileNameSize=strlen(fileName);
 	
-	printf("Sending %s \n",FILE_CHUNK_REQUEST);
-	send(p2pFD,FILE_CHUNK_REQUEST,sizeof(FILE_CHUNK_REQUEST),0);	
+	
+    memcpy(request+offset,FILE_CHUNK_REQUEST,strlen(FILE_CHUNK_REQUEST));
+    offset+=strlen(FILE_CHUNK_REQUEST);
+	
+    memcpy(request+offset,&fileNameSize,sizeof(int));
+    offset+=sizeof(int);
+    //Read the file name
+    memcpy(request+offset,fileName,fileNameSize);
+    offset+=fileNameSize;
+    //Write the chunk ID
+    memcpy(request+offset,&chunkID,sizeof(int));
+    offset+=sizeof(int);
+	
+	memcpy(chunkName,&("Chunk_"),6);
+    memcpy(chunkName+6,fileName,strlen(fileName));
+	sprintf(str, "_%d", chunkID);
+    memcpy(chunkName+6+strlen(fileName),&str,sizeof(str));
+	
+	printf("Sending %s \n",request);
+	send(p2pFD,request,strlen(request),0);	
 	
 	
 	bzero(chunkName,50);
