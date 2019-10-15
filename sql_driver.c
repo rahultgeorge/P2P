@@ -78,6 +78,7 @@ int insertIntoFileList(char* fileName,int size,char* ipAddress,int port)
 	    int rc = sqlite3_open("P2P.db", &db);
 		char chunkName[50];
 		char str[5];
+		int i;
 		
 		if(size>1048576)
 			numberOfChunks=3;
@@ -86,7 +87,7 @@ int insertIntoFileList(char* fileName,int size,char* ipAddress,int port)
 		
 		printf("Updating the server file list\n");
 		/*Insert into the chunks table*/
-		for(int i=1;i<=numberOfChunks;i++)
+		for(i=1;i<=numberOfChunks;i++)
 		{	
 		    chunkID=i;
 			bzero(chunkName,50);

@@ -44,6 +44,7 @@ void registerRequestHandler(char* request,char* reply,int peerSocketFD)
 	uint16_t noOfFiles;
 	uint32_t fileNamesSize,*fileSizes;
 	int bitMapReply=0;
+	int i=0;
 	
     struct sockaddr_in addr;
     socklen_t addr_size = sizeof(struct sockaddr_in);
@@ -61,7 +62,7 @@ void registerRequestHandler(char* request,char* reply,int peerSocketFD)
 	printf("File names size %d \n",fileNamesSize);
 	
 	fileNames=malloc(sizeof(char *) * noOfFiles);
-	for(int i=1;i<=noOfFiles;i++)
+	for(i=1;i<=noOfFiles;i++)
 	{
 		
       memcpy(&fileNameSize,request+offset,sizeof(int));

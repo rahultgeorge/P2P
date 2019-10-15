@@ -151,10 +151,11 @@ bool chunkFiles(int noOfFiles,char **files)
 	size_t chunkSize;
 	char *chunk;
 	char *chunkName=(char *)malloc(sizeof(char)*50);
+	int i=0;
 	myFilesStats=malloc(noOfFiles*sizeof(struct stat *));
 	assert(myFilesStats!=NULL);
 	char str[5];
-	for(int i=1;i<noOfFiles;++i)
+	for(i=1;i<noOfFiles;++i)
 	{
 		
 		inputFile=open(files[i],O_RDONLY);
@@ -291,8 +292,8 @@ bool registerRequest(uint16_t noFiles,char **files)
 	int expectedBitMapReply=0,bitMapReply=-1;
 	uint32_t fileNamesSize=0,fileSize=0;
 	char reply[MAX_MESSAGE_SIZE];
-	
-	for(int i=1;i<=noFiles;i++)
+	int i=0;
+	for(i=1;i<=noFiles;i++)
 	  fileNamesSize+=(uint32_t)strlen(files[i]);
 	printf("File Names Size %d\n",fileNamesSize);
 	
@@ -315,7 +316,7 @@ bool registerRequest(uint16_t noFiles,char **files)
 	printf("File Names Size %d\n",fileNamesSize);
 	
 	
-    for(int i=1;i<=noFiles;i++)
+    for(i=1;i<=noFiles;i++)
  	{
 	  /*File name size */
     fileNameSize=strlen(files[i]);
