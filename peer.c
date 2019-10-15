@@ -76,13 +76,15 @@ void* fileChunkRequestHandler(void *arg)
 	char fileName[20],chunkName[30];
 	int chunkFD=-1,chunkID=-1,fileNameSize=-1;
 	off_t len;
-	
+	display("Inside file chunk request handler");
 	while(1)
 	{	
 	 memset(message, '\0',MAX_MESSAGE_SIZE);
 	 //Blocking call
 	 recv(newSocket , message , MAX_MESSAGE_SIZE , 0);
 	 offset=0;
+	 if(strlen(message)!=0)
+	 {
 	 memcpy(header,message+offset,MESSAGE_HEADER_LENGTH);
 	 offset+=MESSAGE_HEADER_LENGTH;
 	 if(strncmp(header,FILE_CHUNK_REQUEST,MESSAGE_HEADER_LENGTH)==0)
@@ -108,7 +110,7 @@ void* fileChunkRequestHandler(void *arg)
 		 chunkFD=open(chunkName,O_RDONLY);
 		 assert(chunkFD!=-1);
 		 sendfile(chunkFD,newSocket,NULL,&len,NULL,0);
-		 
+	  }	 
 	 }
 	 // printf("Reply %s\n",reply);
 	 // send(newSocket,reply,MAX_MESSAGE_SIZE,0);
@@ -211,15 +213,21 @@ void* peerDownloadThreadHandler(void* arg)
 	int chunkID;
 	int downloadedChunk;
 	int num=-1;
-	int size=1024*512;
-	char* buffer[size];
-	char str[5],*fileName;
-	struct FileChunkRequest *fileChunkRequest;
+	int size=(1024);
+	char buffer[1024];
+	char str[5];
+	char* fileName;
+	struct FileChunkRequest* fileChunkRequest;
+	
 	fileChunkRequest=(struct FileChunkRequest *)arg;
 	
 	fileName=fileChunkRequest->fileName;
 	chunkID=fileChunkRequest->chunkID;
 	p2pFD=fileChunkRequest->p2pFD;
+	
+	printf("Sending %s \n",FILE_CHUNK_REQUEST);
+	send(p2pFD,FILE_CHUNK_REQUEST,sizeof(FILE_CHUNK_REQUEST),0);	
+	
 	
 	bzero(chunkName,50);
     memcpy(chunkName,&("Chunk_"),6);
@@ -250,27 +258,31 @@ void  requestForFileChunk(char * fileName, uint32_t chunkID,char* ipAddress, int
 	int p2pFD=0;
     void* arg=NULL;
 	pthread_t *p2pThread; //P2P threads
-	p2pThread=malloc(sizeof(pthread_t));
+	p2pThread=malloc(sizeof(struct pthread_t*));
 	struct FileChunkRequest *fileChunkRequest;
 	fileChunkRequest=malloc(sizeof(struct FileChunkRequest));
+	printf("Requested for a file chunk\n");
 	bzero(fileChunkRequest,sizeof(fileChunkRequest));
 	
-	fileChunkRequest->fileName=fileName;
-	fileChunkRequest->chunkID=chunkID;
-	fileChunkRequest->p2pFD=p2pFD;
-	arg=(void *)fileChunkRequest;
+
 	
     p2pFD=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
     assert(p2pFD!=0);
+	
     memset(&peerDownloadAddress, '\0', sizeof(peerDownloadAddress));
     peerDownloadAddress.sin_family=DOMAIN;
 	
 	//Connect to the port the peer is listening to
-    peerDownloadAddress.sin_port=htons(P2P_PORT); 
+    peerDownloadAddress.sin_port=htons(60002); 
     inet_aton(ipAddress, &peerDownloadAddress.sin_addr.s_addr);
 	
 	if(connect(p2pFD,(struct sockaddr *)&peerDownloadAddress,sizeof(peerDownloadAddress))==0)
 	{
+		printf("Connected to peer\n");
+		fileChunkRequest->fileName=fileName;
+		fileChunkRequest->chunkID=chunkID;
+		fileChunkRequest->p2pFD=p2pFD;
+		arg=(void *)fileChunkRequest;
 	  flag=pthread_create(p2pThread,NULL,&peerDownloadThreadHandler,arg);  
     }
 }
