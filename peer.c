@@ -6,17 +6,15 @@
 static int peerToServerFD;
 static int peerListenerSocket;
 
-static struct sockaddr_in clientAddress,peerListeningAddress,peerDownloadAddress;
+static struct sockaddr_in peerListeningAddress,peerDownloadAddress;
 static struct sockaddr_in serverAddress;
 
 int peerListeningAddressLength;	
 
-static char* serverFileList;
-static char* myFiles;
 static struct stat **myFilesStats;
 
 static pthread_t *peerThread; //Peer listening thread
-static pthread_t **p2pThreads;
+static pthread_t *p2pThreads;
 pthread_mutex_t printfLock;
 
 void display(char* message)
@@ -73,9 +71,12 @@ void* fileChunkRequestHandler(void *arg)
 	int offset=0;
 	char header[MESSAGE_HEADER_LENGTH];
 	char str[5];
-	char fileName[20],chunkName[30];
-	int chunkFD=-1,chunkID=-1,fileNameSize=-1;
-	off_t len;
+	char fileName[50],chunkName[30];
+	int chunkFD=-1,chunkID=-1,fileNameSize=-1,chunkSize=-1;
+	static struct stat *myFilesStats;
+	
+
+	
 	display("Inside file chunk request handler");
 	while(1)
 	{	
@@ -85,6 +86,9 @@ void* fileChunkRequestHandler(void *arg)
 	 offset=0;
 	 if(strlen(message)!=0)
 	 {
+
+	 myFilesStats=malloc(sizeof(struct stat ));	 
+	 printf("Received a non null message\n");
 	 memcpy(header,message+offset,MESSAGE_HEADER_LENGTH);
 	 offset+=MESSAGE_HEADER_LENGTH;
 	 if(strncmp(header,FILE_CHUNK_REQUEST,MESSAGE_HEADER_LENGTH)==0)
@@ -92,7 +96,7 @@ void* fileChunkRequestHandler(void *arg)
 		 //Read the file name size
 		 memcpy(&fileNameSize,message+offset,sizeof(int));
 		 offset+=sizeof(int);
-		 
+		 display("File name size");
 		 //Read the file name
 		 memcpy(fileName,message+offset,fileNameSize);
 		 offset+=fileNameSize;
@@ -109,8 +113,15 @@ void* fileChunkRequestHandler(void *arg)
 		 //Upload
 		 chunkFD=open(chunkName,O_RDONLY);
 		 assert(chunkFD!=-1);
-		 sendfile(chunkFD,newSocket,NULL,&len,NULL,0);
-	  }	 
+
+		 
+ 		 assert(fstat(chunkFD,myFilesStats)==0);
+ 		 chunkSize=myFilesStats->st_size;
+		 
+		 sendfile(chunkFD,newSocket,NULL,NULL,NULL,chunkSize);
+	  }	
+	 free(myFilesStats);
+	   
 	 }
 	 // printf("Reply %s\n",reply);
 	 // send(newSocket,reply,MAX_MESSAGE_SIZE,0);
@@ -126,7 +137,7 @@ void* peerListenerThreadHandler(void* arg)
 	/*Listening for download requests*/
 	int flag,newSocket=-1,i=0;
    
-	p2pThreads=malloc(sizeof(pthread_t)*5);
+	p2pThreads=malloc(sizeof(pthread_t));
 	initialize();
 	display("Done initializing");
 	
@@ -137,9 +148,8 @@ void* peerListenerThreadHandler(void* arg)
 	 newSocket=accept(peerListenerSocket,( struct sockaddr *) & peerListeningAddress, &peerListeningAddressLength ); 
 	 assert(newSocket!=-1);
 	 display("New peer requesting for file chunk\n");
-	 flag=pthread_create(p2pThreads[i],NULL,&fileChunkRequestHandler,&newSocket);
+	 flag=pthread_create(p2pThreads,NULL,&fileChunkRequestHandler,&newSocket);
 	 assert(flag==0);
-	 ++i;
     }	
 
 	return NULL;
