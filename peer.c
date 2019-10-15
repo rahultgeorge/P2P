@@ -88,18 +88,20 @@ void* fileChunkRequestHandler(void *arg)
 	 {
 
 	 myFilesStats=malloc(sizeof(struct stat ));	 
-	 printf("Received a non null message\n");
 	 memcpy(header,message+offset,MESSAGE_HEADER_LENGTH);
 	 offset+=MESSAGE_HEADER_LENGTH;
 	 if(strncmp(header,FILE_CHUNK_REQUEST,MESSAGE_HEADER_LENGTH)==0)
 	 {
 		 //Read the file name size
+		 printf("Received a file chunk request\n");
+		 
 		 memcpy(&fileNameSize,message+offset,sizeof(int));
 		 offset+=sizeof(int);
-		 display("File name size");
+		 printf("File name size%d\n",fileNameSize);
+         		 
 		 //Read the file name
-		 memcpy(fileName,message+offset,fileNameSize);
-		 offset+=fileNameSize;
+		 memcpy(fileName,message+offset,fileNameSize+1);
+		 offset+=fileNameSize+1;
 		 
 		 //Read the chunk ID
 		 memcpy(&chunkID,message+offset,sizeof(int));
@@ -243,8 +245,8 @@ void* peerDownloadThreadHandler(void* arg)
     offset+=sizeof(int);
 	
     //Write the file name
-    memcpy(request+offset,fileName,fileNameSize);
-    offset+=fileNameSize;
+    memcpy(request+offset,fileName,fileNameSize+1);
+    offset+=fileNameSize+1;
 	
     //Write the chunk ID
     memcpy(request+offset,&chunkID,sizeof(int));
