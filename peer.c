@@ -26,8 +26,7 @@ void display(char* message)
 
 void initialize()
 {
-	 int flag,on=1;
-     
+	int flag,on=1; 
     peerListenerSocket=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
     assert(peerListenerSocket!=0);
 	if(DEBUG)
@@ -39,8 +38,6 @@ void initialize()
 	/*TODO Change port number on which it listens */
     peerListeningAddress.sin_port=htons(P2P_PORT);
 	peerListeningAddressLength=sizeof(peerListeningAddress);
-	
-	
     //flag=setsockopt(serverSocketFD, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int));	
 	
 	flag=bind(peerListenerSocket,(const struct sockaddr *)&peerListeningAddress,sizeof(peerListeningAddress));
@@ -71,13 +68,16 @@ void* fileChunkRequestHandler(void *arg)
 	int offset=0;
 	char header[MESSAGE_HEADER_LENGTH];
 	char str[5];
-	char fileName[50],chunkName[30];
+	char fileName[50],chunkName[30],*buffer;
 	int chunkFD=-1,chunkID=-1,fileNameSize=-1,chunkSize=-1;
 	static struct stat *myFilesStats;
+	printf("Inside file chunk request handler\n");
 	
-
+	int bytesRead=-1,bytesWritten=-1,totalBytesRead=0;
+	 
+	buffer=malloc(sizeof(char)*BUFFER_SIZE);
 	
-	display("Inside file chunk request handler");
+	printf("Inside file chunk request handler\n");
 	while(1)
 	{	
 	 memset(message, '\0',MAX_MESSAGE_SIZE);
@@ -89,15 +89,18 @@ void* fileChunkRequestHandler(void *arg)
 
 	 myFilesStats=malloc(sizeof(struct stat ));	 
 	 memcpy(header,message+offset,MESSAGE_HEADER_LENGTH);
-	 offset+=MESSAGE_HEADER_LENGTH;
+	 offset=MESSAGE_HEADER_LENGTH;
+	 
 	 if(strncmp(header,FILE_CHUNK_REQUEST,MESSAGE_HEADER_LENGTH)==0)
 	 {
 		 //Read the file name size
 		 printf("Received a file chunk request\n");
 		 
 		 memcpy(&fileNameSize,message+offset,sizeof(int));
+		 printf("Buffer at %d offset is %s\n",offset,message);
 		 offset+=sizeof(int);
-		 printf("File name size%d\n",fileNameSize);
+		 
+		 printf("File name size: %d\n",fileNameSize);
          		 
 		 //Read the file name
 		 memcpy(fileName,message+offset,fileNameSize+1);
@@ -119,8 +122,15 @@ void* fileChunkRequestHandler(void *arg)
 		 
  		 assert(fstat(chunkFD,myFilesStats)==0);
  		 chunkSize=myFilesStats->st_size;
-		 
-		 sendfile(chunkFD,newSocket,NULL,NULL,NULL,chunkSize);
+		 bytesRead=-1;
+		 totalBytesRead=0;
+		 // while(totalBytesRead!=chunkSize)
+		 // {
+		 // 			  bytesRead=read(chunkFD,buffer,BUFFER_SIZE);
+		 // 			  bytesWritten=send(newSocket,buffer,bytesRead,0);
+		 // 			  assert(bytesRead==bytesWritten);
+		 // 			  totalBytesRead+=bytesRead;
+		 // }
 	  }	
 	 free(myFilesStats);
 	   
@@ -169,7 +179,6 @@ bool chunkFiles(int noOfFiles,char **files)
 	char str[5];
 	for(i=1;i<noOfFiles;++i)
 	{
-		
 		inputFile=open(files[i],O_RDONLY);
 		assert(inputFile!=-1);
 		assert(myFilesStats[i]!=NULL);
@@ -276,7 +285,9 @@ void* peerDownloadThreadHandler(void* arg)
 	
 		arg=(struct FileChunkRequest*)arg;
 	free(arg);
+	return NULL;
 }
+ 
 
 void  requestForFileChunk(char * fileName, uint32_t chunkID,char* ipAddress, int port)
 {
@@ -311,8 +322,11 @@ void  requestForFileChunk(char * fileName, uint32_t chunkID,char* ipAddress, int
 		fileChunkRequest->chunkID=chunkID;
 		fileChunkRequest->p2pFD=p2pFD;
 		arg=(void *)fileChunkRequest;
-	  flag=pthread_create(p2pThread,NULL,&peerDownloadThreadHandler,arg);  
+	  
+	     flag=pthread_create(p2pThread,NULL,&peerDownloadThreadHandler,arg);  
+
     }
+
 }
 
 
