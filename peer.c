@@ -139,11 +139,9 @@ void* peerListenerThreadHandler(void* arg)
    
 	p2pThreads=malloc(sizeof(pthread_t));
 	initialize();
-	display("Done initializing");
 	
 	while(1)
 	{
-   	 display("wW peer requesting for file chunk");
 		
 	 newSocket=accept(peerListenerSocket,( struct sockaddr *) & peerListeningAddress, &peerListeningAddressLength ); 
 	 assert(newSocket!=-1);
