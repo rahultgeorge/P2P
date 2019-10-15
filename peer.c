@@ -89,7 +89,7 @@ void* fileChunkRequestHandler(void *arg)
 
 	 myFilesStats=malloc(sizeof(struct stat ));	 
 	 memcpy(header,message+offset,MESSAGE_HEADER_LENGTH);
-	 offset=MESSAGE_HEADER_LENGTH;
+	 offset+=MESSAGE_HEADER_LENGTH;
 	 
 	 if(strncmp(header,FILE_CHUNK_REQUEST,MESSAGE_HEADER_LENGTH)==0)
 	 {
@@ -97,7 +97,6 @@ void* fileChunkRequestHandler(void *arg)
 		 printf("Received a file chunk request\n");
 		 
 		 memcpy(&fileNameSize,message+offset,sizeof(int));
-		 printf("Buffer at %d offset is %s\n",offset,message);
 		 offset+=sizeof(int);
 		 
 		 printf("File name size: %d\n",fileNameSize);
@@ -124,13 +123,14 @@ void* fileChunkRequestHandler(void *arg)
  		 chunkSize=myFilesStats->st_size;
 		 bytesRead=-1;
 		 totalBytesRead=0;
-		 // while(totalBytesRead!=chunkSize)
-		 // {
-		 // 			  bytesRead=read(chunkFD,buffer,BUFFER_SIZE);
-		 // 			  bytesWritten=send(newSocket,buffer,bytesRead,0);
-		 // 			  assert(bytesRead==bytesWritten);
-		 // 			  totalBytesRead+=bytesRead;
-		 // }
+		 while(totalBytesRead!=chunkSize)
+		 {
+		 			  bytesRead=read(chunkFD,buffer,BUFFER_SIZE);
+		 			  bytesWritten=send(newSocket,buffer,bytesRead,0);
+					  printf("Bytes read %d \n",bytesRead);
+		 			  assert(bytesRead==bytesWritten);
+		 			  totalBytesRead+=bytesRead;
+		 }
 	  }	
 	 free(myFilesStats);
 	   
