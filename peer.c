@@ -117,10 +117,10 @@ void* fileChunkRequestHandler(void *arg)
 		 //Upload
 		 chunkFD=open(chunkName,O_RDONLY);
 		 assert(chunkFD!=-1);
-
 		 
  		 assert(fstat(chunkFD,myFilesStats)==0);
  		 chunkSize=myFilesStats->st_size;
+		 assert(chunkSize!=0);
 		 bytesRead=-1;
 		 totalBytesRead=0;
 		 while(totalBytesRead!=chunkSize)
@@ -277,8 +277,10 @@ void* peerDownloadThreadHandler(void* arg)
   
 	    printf("Downloading the chunk %s \n",chunkName);	
 		downloadedChunk=open(chunkName,O_CREAT | O_APPEND);
+		assert(downloadedChunk!=-1);
 		while((num=read(p2pFD,buffer,size))!=-1)
 		{
+			printf("Read %d bytes \n",num);
 			num=write(downloadedChunk,buffer,num);
 			printf("Wrote %d bytes into %s\n",num,chunkName);
 		}
