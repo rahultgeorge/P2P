@@ -237,6 +237,7 @@ void* peerDownloadThreadHandler(void* arg)
 	char str[5];
 	char* fileName;
 	struct FileChunkRequest* fileChunkRequest;
+	int requestSize=0;
 	
 	fileChunkRequest=(struct FileChunkRequest *)arg;
 	
@@ -263,7 +264,8 @@ void* peerDownloadThreadHandler(void* arg)
 
 	
 	printf("Sending %s \n",request);
-	send(p2pFD,request,strlen(request),0);	
+	requestSize=8+MESSAGE_HEADER_LENGTH+fileNameSize;
+	send(p2pFD,request,requestSize,0);	
 	
 	
 	bzero(chunkName,50);
