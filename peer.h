@@ -1,3 +1,5 @@
+#ifndef PEER_H
+#define PEER_H 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -25,20 +27,48 @@
 #define SERVER_LEN 9
 #define CHUNK_SIZE 524288
 
-
-#define MESSAGE_HEADER_LENGTH 11
-#define REGISTER_REQUEST "REG_REQUEST"
-#define FILE_LIST_REQUEST "FLI_REQUEST"
-#define FILE_LOCATION_REQUEST "FLO_REQUEST"
-#define CHUNK_REGISTER_REQUEST "CHU_REQUEST"
+#define P2P_PORT 60022
+#define MAX_CLIENTS 100
 
 
+#define MAX_MESSAGE_SIZE 2048
+#define MAX_P2P_MESSAGE_SIZE 1024*1024
+
+#define MESSAGE_HEADER_LENGTH 12
+#define REGISTER_REQUEST "REG_REQUEST\0"
+#define FILE_LIST_REQUEST "FLI_REQUEST\0"
+#define FILE_LOCATION_REQUEST "FLO_REQUEST\0"
+#define CHUNK_REGISTER_REQUEST "CHU_REQUEST\0"
+#define FILE_CHUNK_REQUEST "FCH_REQUEST\0"
+
+
+#define REGISTER_REPLY       "REGIS_REPLY\0"
+#define FILE_LIST_REPLY      "FI_LS_REPLY\0"
+#define FILE_LOCATION_REPLY  "FI_LO_REPLY\0"
+#define CHUNK_REGISTER_REPLY "CHUNK_REPLY\0"
+
+
+
+
+
+
+struct FileList
+{
+  char** files;
+  int noFiles;
+  int *fileSizes;  	
+};
 
 /* The functions accepts a list of files
  * and chunks the said files.
  */
 bool chunk_files(char*);
 
-unsigned char* fileChunkRequestHandler(char * fileName, uint32_t chunkID);
-
+void* fileChunkRequestHandler(void *arg);
+	
+	
 void fileChunkReply();
+
+void showDownloadStatus();
+
+#endif
