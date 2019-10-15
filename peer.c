@@ -4,9 +4,12 @@
 /*Peer code*/
 
 static int peerToServerFD;
-static struct sockaddr_in clientAddress;
+static int peerListenerSocket;
+
+static struct sockaddr_in clientAddress,peerListeningAddress,peerDownloadAddress;
 static struct sockaddr_in serverAddress;
-unsigned int clientLength;
+
+int peerListeningAddressLength;	
 
 static char* serverFileList;
 static char* myFiles;
@@ -14,35 +17,46 @@ static struct stat **myFilesStats;
 
 static pthread_t *peerThread; //Peer listening thread
 static pthread_t **p2pThreads;
-int serverSocketFD;
+pthread_mutex_t printfLock;
 
-
-void initalize()
+void display(char* message)
 {
-	/*Initialzie the peer's listening socket*/
-    int flag,on=1;
-    serverSocketFD=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
-    assert(serverSocketFD!=0);
+	pthread_mutex_lock(&printfLock);
+	printf("%s\n",message);
+	pthread_mutex_unlock(&printfLock);	
+}
+
+void initialize()
+{
+	 int flag,on=1;
+     
+    peerListenerSocket=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
+    assert(peerListenerSocket!=0);
 	if(DEBUG)
-     printf("Server Socket Created\n"); 
+     display("Peer listener socket Created\n"); 
 		
-    memset(&serverAddress,'\0',sizeof(serverAddress));
-    serverAddress.sin_family=DOMAIN;
-	inet_aton("127.0.0.1", &serverAddress.sin_addr.s_addr);
-    serverAddress.sin_port=htons(P2P_PORT);
+    memset(&peerListeningAddress,'\0',sizeof(peerListeningAddress));
+    peerListeningAddress.sin_family=DOMAIN;
+	inet_aton("127.0.0.1", &peerListeningAddress.sin_addr.s_addr);
+	/*TODO Change port number on which it listens */
+    peerListeningAddress.sin_port=htons(P2P_PORT);
+	peerListeningAddressLength=sizeof(peerListeningAddress);
+	
 	
     //flag=setsockopt(serverSocketFD, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int));	
-    clientLength=sizeof(clientAddress); 
 	
-	flag=bind(serverSocketFD,(const struct sockaddr *)&serverAddress,sizeof(serverAddress));
+	flag=bind(peerListenerSocket,(const struct sockaddr *)&peerListeningAddress,sizeof(peerListeningAddress));
 	assert(flag==0);
 	if(DEBUG)
-     printf("Server Socket Bound\n");  
-    flag=listen(serverSocketFD,5);
+     display("Peer listening Socket Bound\n");  
+    flag=listen(peerListenerSocket,5);
 	assert(flag==0);
 	if(DEBUG)
-     printf("Server Socket Listening\n"); 
+     display("Peer Socket Listening\n"); 
+	display("INSIDE"); 
 }
+
+
 
 
 void showDownloadStatus(){
@@ -53,7 +67,7 @@ void showDownloadStatus(){
 
 void* fileChunkRequestHandler(void *arg)
 {
-	/*Handles each peer to peer connection */
+	/*Handles each peer to peer connection for peers requesting a chunk */
 	int newSocket=*((int *)arg);
 	char message[MAX_MESSAGE_SIZE];
 	int offset=0;
@@ -109,13 +123,18 @@ void* peerListenerThreadHandler(void* arg)
 {
 	/*Listening for download requests*/
 	int flag,newSocket=-1,i=0;
-	printf("INSIDE\n");
+   
 	p2pThreads=malloc(sizeof(pthread_t)*5);
-	initalize();
+	initialize();
+	display("Done initializing");
+	
 	while(1)
 	{
-	 newSocket=accept(serverSocketFD,( struct sockaddr *) & clientAddress, &clientLength); 
+   	 display("wW peer requesting for file chunk");
+		
+	 newSocket=accept(peerListenerSocket,( struct sockaddr *) & peerListeningAddress, &peerListeningAddressLength ); 
 	 assert(newSocket!=-1);
+	 display("New peer requesting for file chunk\n");
 	 flag=pthread_create(p2pThreads[i],NULL,&fileChunkRequestHandler,&newSocket);
 	 assert(flag==0);
 	 ++i;
@@ -184,28 +203,30 @@ bool chunkFiles(int noOfFiles,char **files)
 void* peerDownloadThreadHandler(void* arg)
 {
 	/*Download file thread specific*/
-	char* chunkName="Chunk_16_16.mp4";
+	char chunkName[50];
 	char request[MAX_MESSAGE_SIZE];
 	int p2pFD=0;
 	/*We can actually read the chunk id and file name from arg*/
-	int chunkID=*(int*)arg;
+	int chunkID;
 	int downloadedChunk;
 	int num=-1;
 	int size=1024*512;
 	char* buffer[size];
-	char str[5];
+	char str[5],*fileName;
+	struct FileChunkRequest *fileChunkRequest;
+	fileChunkRequest=(struct FileChunkRequest *)arg;
 	
-    p2pFD=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
-    assert(p2pFD!=0);
-    memset(&clientAddress, '\0', sizeof(clientAddress));
-    clientAddress.sin_family=DOMAIN;
-    clientAddress.sin_port=htons(P2P_PORT);
-    //memcpy((char *) &clientAddress.sin_addr.s_addr,SERVER,SERVER_LEN);
-    inet_aton("127.0.0.1", &clientAddress.sin_addr.s_addr);
+	fileName=fileChunkRequest->fileName;
+	chunkID=fileChunkRequest->chunkID;
+	p2pFD=fileChunkRequest->p2pFD;
+	
+	bzero(chunkName,50);
+    memcpy(chunkName,&("Chunk_"),6);
+    memcpy(chunkName+6,fileName,strlen(fileName));
     sprintf(str, "_%d", chunkID);
-	memcpy(chunkName+15,str,6);
-	if(connect(p2pFD,(struct sockaddr *)&clientAddress,sizeof(clientAddress))==0)
-	{
+    memcpy(chunkName+6+strlen(fileName),&str,sizeof(str));	
+	
+  
 	    printf("Downloading the chunk %s \n",chunkName);	
 		downloadedChunk=open(chunkName,O_CREAT | O_APPEND);
 		while((num=read(p2pFD,buffer,size))!=-1)
@@ -215,8 +236,9 @@ void* peerDownloadThreadHandler(void* arg)
 		}
 		close(downloadedChunk);
 	    printf("Done downloading chunk %s \n",chunkName);		
-		
-	}
+	
+		arg=(struct FileChunkRequest*)arg;
+	free(arg);
 }
 
 void  requestForFileChunk(char * fileName, uint32_t chunkID,char* ipAddress, int port)
@@ -224,11 +246,32 @@ void  requestForFileChunk(char * fileName, uint32_t chunkID,char* ipAddress, int
 	
 	/*Downloading chunk from other peers using the data received as part of the file location reply*/
 	int flag=-1;
+	int p2pFD=0;
     void* arg=NULL;
 	pthread_t *p2pThread; //P2P threads
 	p2pThread=malloc(sizeof(pthread_t));
-	*((int*)arg)=chunkID;
-	flag=pthread_create(p2pThread,NULL,&peerDownloadThreadHandler,arg);  
+	struct FileChunkRequest *fileChunkRequest;
+	fileChunkRequest=malloc(sizeof(struct FileChunkRequest));
+	bzero(fileChunkRequest,sizeof(fileChunkRequest));
+	
+	fileChunkRequest->fileName=fileName;
+	fileChunkRequest->chunkID=chunkID;
+	fileChunkRequest->p2pFD=p2pFD;
+	arg=(void *)fileChunkRequest;
+	
+    p2pFD=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
+    assert(p2pFD!=0);
+    memset(&peerDownloadAddress, '\0', sizeof(peerDownloadAddress));
+    peerDownloadAddress.sin_family=DOMAIN;
+	
+	//Connect to the port the peer is listening to
+    peerDownloadAddress.sin_port=htons(P2P_PORT); 
+    inet_aton(ipAddress, &peerDownloadAddress.sin_addr.s_addr);
+	
+	if(connect(p2pFD,(struct sockaddr *)&peerDownloadAddress,sizeof(peerDownloadAddress))==0)
+	{
+	  flag=pthread_create(p2pThread,NULL,&peerDownloadThreadHandler,arg);  
+    }
 }
 
 
@@ -355,9 +398,9 @@ void fileListRequest()
 void fileLocationRequest(char* fileName)
 {
 	int totalMessageSize=0,offset=0,chunkID;
-	int fileNameSize=strlen(fileName),numberOfChunks,size,ipSize,port;
+	int fileNameSize=strlen(fileName),numberOfChunks,size,ipSize,port,chunkNameLength,fileNameLength;
 	char reply[MAX_MESSAGE_SIZE];
-	char chunkName[50],fileName[30],ipAddress[50];
+	char chunkName[50],ipAddress[50];
 	
 
 	totalMessageSize+=(strlen(fileName)+MESSAGE_HEADER_LENGTH+sizeof(int));
@@ -413,7 +456,7 @@ void fileLocationRequest(char* fileName)
 		
 		/* IP Address */
 		
-		memcpy(&ipSize,,reply+offset,sizeof(int));
+		memcpy(&ipSize,reply+offset,sizeof(int));
 		offset+=sizeof(int);
 		
 		memcpy(ipAddress,reply+offset,ipSize+1);
@@ -436,6 +479,8 @@ int main(int argc, char **argv)
 	
 	    int option=-1,flag=-1;
 		char fileName[50];
+		pthread_mutex_init(&printfLock,NULL);
+		
 	    peerToServerFD=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
 	    assert(peerToServerFD!=0);
 	    memset(&serverAddress, '\0', sizeof(serverAddress));
@@ -445,49 +490,52 @@ int main(int argc, char **argv)
 	    inet_aton("127.0.0.1", &serverAddress.sin_addr.s_addr);
 	    chunkFiles(argc,argv);
 	    peerThread=malloc(sizeof(pthread_t));
+		flag=pthread_create(peerThread,NULL,&peerListenerThreadHandler,NULL);
+		display("Peer list");
+		assert(flag==0);
+		while(1);
 	
-	
- 		    if(connect(peerToServerFD,(struct sockaddr *)&serverAddress,sizeof(serverAddress))==0)
- 	    {
- 		  if(DEBUG)
- 		   printf("Peer Connected to Server\n");
- 		  /*Options to view file list, download a file and view download status*/
- 	   		  if(registerRequest(argc-1,argv)==true)
- 			  		  {
-						flag=pthread_create(peerThread,NULL,&peerListenerThreadHandler,NULL);
- 						while(1)
- 					    {
- 						showOptions();
- 						scanf("%d",&option);
- 						switch(option)
- 					    {
- 	  			          case 1:
- 						  //Requesting for the file list
- 	  			          fileListRequest();
- 			               break;
-
- 	  			          case 2:
- 						  //Download a file
- 						  printf("Specify file name\n");
- 						  scanf("%s",fileName);
- 						  fileLocationRequest(fileName);
- 	  	                  break;
-
- 			              case 3:
- 						  showDownloadStatus();
- 	                      break;
-
- 						  case 4:
- 	  	                  break;
-
- 						  default:
- 	  			          //cleanUp();
- 					  break;
- 	   		            }
- 	            }
- 		  }
-
- 	}
+ 	//
+ 	// 	if(connect(peerToServerFD,(struct sockaddr *)&serverAddress,sizeof(serverAddress))==0)
+ 	//     {
+ 	// 	  if(DEBUG)
+ 	// 	   printf("Peer Connected to Server\n");
+ 	// 	  /*Options to view file list, download a file and view download status*/
+ 	//    		  if(registerRequest(argc-1,argv)==true)
+ 	// 		  		  {
+ 	// 					while(1)
+ 	// 				    {
+ 	// 					showOptions();
+ 	// 					scanf("%d",&option);
+ 	// 					switch(option)
+ 	// 				    {
+ 	//   			          case 1:
+ 	// 					  //Requesting for the file list
+ 	//   			          fileListRequest();
+ 	// 		               break;
+ 	//
+ 	//   			          case 2:
+ 	// 					  //Download a file
+ 	// 					  printf("Specify file name\n");
+ 	// 					  scanf("%s",fileName);
+ 	// 					  fileLocationRequest(fileName);
+ 	//   	                  break;
+ 	//
+ 	// 		              case 3:
+ 	// 					  showDownloadStatus();
+ 	//                       break;
+ 	//
+ 	// 					  case 4:
+ 	//   	                  break;
+ 	//
+ 	// 					  default:
+ 	//   			          //cleanUp();
+ 	// 				  break;
+ 	//    		            }
+ 	//             }
+ 	// 	  }
+ 	//
+ 	// }
 
         return 0; 
 }

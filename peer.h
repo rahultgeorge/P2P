@@ -27,7 +27,7 @@
 #define SERVER_LEN 9
 #define CHUNK_SIZE 524288
 
-//#define P2P_PORT 60022 Peer listens dynamically on a port
+#define P2P_PORT 60002 //Peer listens dynamically on a port
 #define MAX_CLIENTS 100
 
 
@@ -48,8 +48,12 @@
 #define CHUNK_REGISTER_REPLY "CHUNK_REPLY\0"
 
 
-
-
+struct FileChunkRequest
+{
+	char* fileName;
+	int chunkID;
+	int p2pFD;
+};
 
 
 struct FileList

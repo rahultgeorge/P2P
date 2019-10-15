@@ -139,6 +139,7 @@ void messageHandler(char* message,char* reply,int peerSocketFD)
 	char* messageType=malloc(sizeof(char)*MESSAGE_HEADER_LENGTH);
 	memcpy(messageType,message,MESSAGE_HEADER_LENGTH);
 	printf("Request received %s \n",messageType);	
+	bzero(reply,MAX_MESSAGE_SIZE);
 	
 	if(strcmp(messageType,REGISTER_REQUEST)==0)
 		registerRequestHandler(message,reply,peerSocketFD);
