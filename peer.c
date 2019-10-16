@@ -34,7 +34,7 @@ void initialize()
 		
     memset(&peerListeningAddress,'\0',sizeof(peerListeningAddress));
     peerListeningAddress.sin_family=DOMAIN;
-	inet_aton("127.0.0.1", &peerListeningAddress.sin_addr.s_addr);
+	inet_aton("127.0.0.1", (struct in_addr *)&peerListeningAddress.sin_addr.s_addr);
 	/*TODO Change port number on which it listens */
     peerListeningAddress.sin_port=htons(P2P_PORT);
 	peerListeningAddressLength=sizeof(peerListeningAddress);
@@ -73,7 +73,7 @@ void combineChunks(char* fileName, int numberOfChunks)
 	  sprintf(str, "_%d", (i+1));
 	  memcpy(chunkName+6+strlen(fileName),&str,sizeof(str));
       chunkFD=open(chunkName,O_RDONLY,0644);
-	  printf("Trying to combine\n");
+	  
 	  bytesRead=bytesWritten=1;
 	  while(bytesRead>0 && bytesWritten>0)
 	  { 
@@ -83,7 +83,8 @@ void combineChunks(char* fileName, int numberOfChunks)
 	  }
 	  close(chunkFD);
 	}
-    close(file);	  	
+    close(file);	
+	printf("Combined successfully\n");  	
     	
 }
 
@@ -102,13 +103,12 @@ void* fileChunkRequestHandler(void *arg)
 	int bytesRead=-1,bytesWritten=-1,totalBytesRead=0;
 	buffer=malloc(sizeof(char)*BUFFER_SIZE);
 	
-
-	 memset(message, '\0',MAX_MESSAGE_SIZE);
+	memset(message, '\0',MAX_MESSAGE_SIZE);
 	 //Blocking call
-	 recv(newSocket , message , MAX_MESSAGE_SIZE , 0);
-	 offset=0;
-	 if(strlen(message)!=0)
-	 {
+	recv(newSocket , message , MAX_MESSAGE_SIZE , 0);
+	offset=0;
+	if(strlen(message)!=0)
+	{
 
 	 myFilesStats=malloc(sizeof(struct stat ));	 
 	 memcpy(header,message+offset,MESSAGE_HEADER_LENGTH);
@@ -138,7 +138,6 @@ void* fileChunkRequestHandler(void *arg)
 		 
 		 printf("Received a file chunk request for %s \n",chunkName);
 		 
-		 
 		 //Upload
 		 chunkFD=open(chunkName,O_RDONLY,0644);
 		 assert(chunkFD!=-1);
@@ -150,11 +149,11 @@ void* fileChunkRequestHandler(void *arg)
 		 totalBytesRead=0;
 		 while(totalBytesRead!=chunkSize)
 		 {
-		 			  bytesRead=read(chunkFD,buffer,BUFFER_SIZE);
-		 			  bytesWritten=send(newSocket,buffer,bytesRead,0);
-					  //printf("Bytes sent %d - %s\n",bytesRead,chunkName);
-		 			  assert(bytesRead==bytesWritten);
-		 			  totalBytesRead+=bytesRead;
+		   bytesRead=read(chunkFD,buffer,BUFFER_SIZE);
+		   bytesWritten=send(newSocket,buffer,bytesRead,0);
+		  //printf("Bytes sent %d - %s\n",bytesRead,chunkName);
+		   assert(bytesRead==bytesWritten);
+		   totalBytesRead+=bytesRead;
 		 }	
 		 printf("Done uploading file\n");  	
          close(chunkFD);
@@ -162,6 +161,7 @@ void* fileChunkRequestHandler(void *arg)
 	 }
 
     }
+	return NULL;
 		
 }
 
@@ -170,14 +170,14 @@ void* fileChunkRequestHandler(void *arg)
 void* peerListenerThreadHandler(void* arg)
 {
 	/*Listening for download requests*/
-	int flag,newSocket=-1,i=0;
+	int flag,newSocket=-1;
    
 	p2pThreads=malloc(sizeof(pthread_t));
 	initialize();
 	
 	while(1)
 	{	
-	 newSocket=accept(peerListenerSocket,( struct sockaddr *) & peerListeningAddress, &peerListeningAddressLength ); 
+	 newSocket=accept(peerListenerSocket,( struct sockaddr *) & peerListeningAddress,(socklen_t *) &peerListeningAddressLength ); 
 	 assert(newSocket!=-1);
 	 //display("New peer requesting for file chunk\n");
 	 flag=pthread_create(p2pThreads,NULL,&fileChunkRequestHandler,&newSocket);
@@ -254,8 +254,7 @@ void* peerDownloadThreadHandler(void* arg)
 	int chunkID,fileNameSize;
 	int downloadedChunk;
 	int num=-1,offset=0;
-	int size=(1024);
-	char *buffer=malloc(sizeof(char)*BUFFER_SIZE);
+ 	char *buffer=malloc(sizeof(char)*BUFFER_SIZE);
 	char str[5];
 	char* fileName;
 	struct FileChunkRequest* fileChunkRequest;
@@ -333,7 +332,7 @@ void  requestForFileChunk(char * fileName, uint32_t chunkID,char* ipAddress, int
 	struct FileChunkRequest *fileChunkRequest;
 	fileChunkRequest=malloc(sizeof(struct FileChunkRequest));
 	printf("Requested for a file chunk\n");
-	bzero(fileChunkRequest,sizeof(fileChunkRequest));
+	bzero(fileChunkRequest,sizeof(struct FileChunkRequest));
 		
     p2pFD=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
     assert(p2pFD!=0);
@@ -343,7 +342,7 @@ void  requestForFileChunk(char * fileName, uint32_t chunkID,char* ipAddress, int
 	
 	//Connect to the port the peer is listening to
     peerDownloadAddress.sin_port=htons(60002); 
-    inet_aton(ipAddress, &peerDownloadAddress.sin_addr.s_addr);
+    inet_aton(ipAddress, (struct in_addr *) &peerDownloadAddress.sin_addr.s_addr);
 	
 	if(connect(p2pFD,(struct sockaddr *)&peerDownloadAddress,sizeof(peerDownloadAddress))==0)
 	{
@@ -365,7 +364,7 @@ void  requestForFileChunk(char * fileName, uint32_t chunkID,char* ipAddress, int
 
 static inline void  showOptions()
 {
- printf("Peer options\n 1. Show me the file List\n 2.Download a file\n 3. View download status\n 4.Misc\n");	
+ printf("Peer options\n 1. Show me the file List\n 2. Download a file\n 3. View download status\n 4. Quit\n");	
 	
 }
 
@@ -385,8 +384,7 @@ bool registerRequest(uint16_t noFiles,char **files)
 	printf("Message size: %d\n",totalMessageSize);
 	char *request=(char *)malloc(sizeof(char)*totalMessageSize);
 	bzero(request,totalMessageSize);
-	printf("Request size %s %d\n",request,strlen(request));
-	
+	printf("Request size %s %lu\n",request,strlen(request));
 	
 	memcpy(request,REGISTER_REQUEST,MESSAGE_HEADER_LENGTH);
 	offset+=MESSAGE_HEADER_LENGTH;
@@ -398,7 +396,6 @@ bool registerRequest(uint16_t noFiles,char **files)
 	memcpy(request+offset,&(fileNamesSize),sizeof(uint32_t));
 	offset+=sizeof(uint32_t);
 	printf("File Names Size %d\n",fileNamesSize);
-	
 	
     for(i=1;i<=noFiles;i++)
  	{
@@ -423,7 +420,7 @@ bool registerRequest(uint16_t noFiles,char **files)
 	}
 
 	request[offset+1]='\0';
-	printf("Request %s %d\n",request,strlen(request));
+	printf("Request %s %lu\n",request,strlen(request));
     printf("Sending register request\n");
 	int bytesSent=write(peerToServerFD,request,totalMessageSize);
 	assert(bytesSent>0);
@@ -554,6 +551,7 @@ void fileLocationRequest(char* fileName)
 		
 		printf("Chunk id %d, file name %s chunk name %s \n", chunkID, fileName, chunkName);	
 		requestForFileChunk(fileName,chunkID,ipAddress,P2P_PORT);
+		sleep(2);
 	}
 	//TODO wait for all downloads or check /spin on some variable then combine
 	
@@ -575,7 +573,7 @@ int main(int argc, char **argv)
 	    serverAddress.sin_family=DOMAIN;
 	    serverAddress.sin_port=htons(PORT);
 	    //memcpy((char *) &clientAddress.sin_addr.s_addr,SERVER,SERVER_LEN);
-	    inet_aton("127.0.0.1", &serverAddress.sin_addr.s_addr);
+	    inet_aton("127.0.0.1", (struct in_addr *)&serverAddress.sin_addr.s_addr);
 	    chunkFiles(argc,argv);
 	    peerThread=malloc(sizeof(pthread_t));
 		flag=pthread_create(peerThread,NULL,&peerListenerThreadHandler,NULL);
@@ -613,6 +611,7 @@ int main(int argc, char **argv)
  	                      break;
 
  						  case 4:
+						  exit();
  	  	                  break;
 
  						  default:
