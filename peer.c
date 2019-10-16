@@ -70,10 +70,9 @@ void* fileChunkRequestHandler(void *arg)
 	int chunkFD=-1,chunkID=-1,fileNameSize=-1,chunkSize=-1;
 	static struct stat *myFilesStats;	
 	int bytesRead=-1,bytesWritten=-1,totalBytesRead=0;
-	 
 	buffer=malloc(sizeof(char)*BUFFER_SIZE);
 	
-	printf("Inside file chunk request handler\n");
+	 printf("Inside file chunk request handler\n");
 
 	 memset(message, '\0',MAX_MESSAGE_SIZE);
 	 //Blocking call
@@ -297,9 +296,7 @@ void  requestForFileChunk(char * fileName, uint32_t chunkID,char* ipAddress, int
 	fileChunkRequest=malloc(sizeof(struct FileChunkRequest));
 	printf("Requested for a file chunk\n");
 	bzero(fileChunkRequest,sizeof(fileChunkRequest));
-	
-
-	
+		
     p2pFD=socket(DOMAIN,SOCKET_TYPE,PROTOCOL);
     assert(p2pFD!=0);
 	
@@ -317,8 +314,8 @@ void  requestForFileChunk(char * fileName, uint32_t chunkID,char* ipAddress, int
 		fileChunkRequest->chunkID=chunkID;
 		fileChunkRequest->p2pFD=p2pFD;
 		arg=(void *)fileChunkRequest;
-	  
-	     flag=pthread_create(p2pThread,NULL,&peerDownloadThreadHandler,arg);  
+		
+	    flag=pthread_create(p2pThread,NULL,&peerDownloadThreadHandler,arg);  
 
     }
 
@@ -520,6 +517,9 @@ void fileLocationRequest(char* fileName)
 		printf("Chunk id %d, file name %s chunk name %s \n", chunkID, fileName, chunkName);	
 		requestForFileChunk(fileName,chunkID,ipAddress,P2P_PORT);
 	}
+	//TODO wait for all downloads or check /spin on some variable then combine
+	
+	combineChunks(fileName,numberOfChunks);
 
 }
 
