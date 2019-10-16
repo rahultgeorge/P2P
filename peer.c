@@ -52,8 +52,6 @@ void initialize()
 }
 
 
-
-
 void showDownloadStatus(){
 	
 	
@@ -76,8 +74,7 @@ void* fileChunkRequestHandler(void *arg)
 	buffer=malloc(sizeof(char)*BUFFER_SIZE);
 	
 	printf("Inside file chunk request handler\n");
-	while(1)
-	{	
+
 	 memset(message, '\0',MAX_MESSAGE_SIZE);
 	 //Blocking call
 	 recv(newSocket , message , MAX_MESSAGE_SIZE , 0);
@@ -128,16 +125,13 @@ void* fileChunkRequestHandler(void *arg)
 					  printf("Bytes read %d \n",bytesRead);
 		 			  assert(bytesRead==bytesWritten);
 		 			  totalBytesRead+=bytesRead;
-		 }
-	  }	
-	 free(myFilesStats);
-	   
+		 }	  	
+         close(chunkFD);
+		 close(newSocket);	   
 	 }
-	 // printf("Reply %s\n",reply);
-	 // send(newSocket,reply,MAX_MESSAGE_SIZE,0);
+
     }
-	
-	
+		
 }
 
 
@@ -151,8 +145,7 @@ void* peerListenerThreadHandler(void* arg)
 	initialize();
 	
 	while(1)
-	{
-		
+	{	
 	 newSocket=accept(peerListenerSocket,( struct sockaddr *) & peerListeningAddress, &peerListeningAddressLength ); 
 	 assert(newSocket!=-1);
 	 display("New peer requesting for file chunk\n");
@@ -527,7 +520,6 @@ void fileLocationRequest(char* fileName)
 		printf("Chunk id %d, file name %s chunk name %s \n", chunkID, fileName, chunkName);	
 		requestForFileChunk(fileName,chunkID,ipAddress,P2P_PORT);
 	}
-	
 
 }
 
