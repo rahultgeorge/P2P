@@ -611,7 +611,7 @@ int main(int argc, char **argv)
  	                      break;
 
  						  case 4:
-						  exit();
+						  exit(0);
  	  	                  break;
 
  						  default:
