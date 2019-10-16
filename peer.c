@@ -252,7 +252,7 @@ void* peerDownloadThreadHandler(void* arg)
 	int downloadedChunk;
 	int num=-1,offset=0;
 	int size=(1024);
-	char buffer[BUFFER_SIZE];
+	char *buffer=malloc(sizeof(char)*BUFFER_SIZE);
 	char str[5];
 	char* fileName;
 	struct FileChunkRequest* fileChunkRequest;
