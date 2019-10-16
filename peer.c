@@ -58,6 +58,35 @@ void showDownloadStatus(){
 }
 
 
+void combineChunks(char* fileName, int numberOfChunks)
+{
+	int chunkFD=-1,file=-1;
+	int bytesRead=-1,bytesWritten=-1;
+	char chunkName[50],str[5];
+	char buffer[BUFFER_SIZE];
+	
+
+	for(int i=0;i<numberOfChunks;i++)
+	{
+	  memcpy(chunkName,&("Chunk_"),6);
+	  memcpy(chunkName+6,fileName,strlen(fileName));
+	  sprintf(str, "_%d", (i+1));
+	  memcpy(chunkName+6+strlen(fileName),&str,sizeof(str));
+      chunkFD=open(chunkName,O_RDONLY);
+	  file=open(fileName,O_CREAT | O_APPEND |O_WRONLY,0644);
+	  while(bytesRead!=0 && bytesWritten!=0)
+	  { 
+		  bytesRead=read(chunkName,buffer,BUFFER_SIZE); 
+		  assert(bytesRead==bytesWritten); 
+		  bytesWritten=write(file,buffer,bytesRead);
+	  }
+	  close(chunkFD);
+	  close(file);	  	
+	}
+	
+}
+
+
 void* fileChunkRequestHandler(void *arg)
 {
 	/*Handles each peer to peer connection for peers requesting a chunk */
