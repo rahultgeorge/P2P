@@ -5,7 +5,7 @@ server: sql
 
 
 sql:  
-	  $(CC) sql_driver.c -c -o sql_driver.o
+	  $(CC) sql_driver.c -c -w -o sql_driver.o
 	  
 	  		
 peer:  sql
