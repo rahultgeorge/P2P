@@ -70,9 +70,7 @@ void* fileChunkRequestHandler(void *arg)
 	char str[5];
 	char fileName[50],chunkName[30],*buffer;
 	int chunkFD=-1,chunkID=-1,fileNameSize=-1,chunkSize=-1;
-	static struct stat *myFilesStats;
-	printf("Inside file chunk request handler\n");
-	
+	static struct stat *myFilesStats;	
 	int bytesRead=-1,bytesWritten=-1,totalBytesRead=0;
 	 
 	buffer=malloc(sizeof(char)*BUFFER_SIZE);
@@ -278,7 +276,7 @@ void* peerDownloadThreadHandler(void* arg)
 	    printf("Downloading the chunk %s \n",chunkName);	
 		downloadedChunk=open(chunkName,O_CREAT | O_APPEND| O_WRONLY, 0644);
 		assert(downloadedChunk!=-1);
-		while((num=read(p2pFD,buffer,size))!=-1)
+		while((num=read(p2pFD,buffer,size))!=0)
 		{
 			printf("Read %d bytes \n",num);
 			num=write(downloadedChunk,buffer,num);
