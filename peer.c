@@ -74,7 +74,7 @@ void combineChunks(char* fileName, int numberOfChunks)
 	  memcpy(chunkName+6+strlen(fileName),&str,sizeof(str));
       chunkFD=open(chunkName,O_RDONLY);
 	  file=open(fileName,O_CREAT | O_APPEND |O_WRONLY,0644);
-	  while(bytesRead!=0 && bytesWritten!=0)
+	  while(bytesRead>0 && bytesWritten>0)
 	  { 
 		  bytesRead=read(chunkName,buffer,BUFFER_SIZE); 
 		  assert(bytesRead==bytesWritten); 
@@ -150,7 +150,7 @@ void* fileChunkRequestHandler(void *arg)
 		 {
 		 			  bytesRead=read(chunkFD,buffer,BUFFER_SIZE);
 		 			  bytesWritten=send(newSocket,buffer,bytesRead,0);
-					  printf("Bytes read %d \n",bytesRead);
+					  //printf("Bytes read %d \n",bytesRead);
 		 			  assert(bytesRead==bytesWritten);
 		 			  totalBytesRead+=bytesRead;
 		 }	  	
@@ -252,7 +252,7 @@ void* peerDownloadThreadHandler(void* arg)
 	int downloadedChunk;
 	int num=-1,offset=0;
 	int size=(1024);
-	char buffer[1024];
+	char buffer[BUFFER_SIZE];
 	char str[5];
 	char* fileName;
 	struct FileChunkRequest* fileChunkRequest;
@@ -297,11 +297,11 @@ void* peerDownloadThreadHandler(void* arg)
 	    printf("Downloading the chunk %s \n",chunkName);	
 		downloadedChunk=open(chunkName,O_CREAT | O_APPEND| O_WRONLY, 0644);
 		assert(downloadedChunk!=-1);
-		while((num=read(p2pFD,buffer,size))!=0)
+		while((num=read(p2pFD,buffer,BUFFER_SIZE))!=0)
 		{
-			printf("Read %d bytes \n",num);
+			//printf("Read %d bytes \n",num);
 			num=write(downloadedChunk,buffer,num);
-			printf("Wrote %d bytes into %s\n",num,chunkName);
+			//printf("Wrote %d bytes into %s\n",num,chunkName);
 		}
 		close(downloadedChunk);
 	    printf("Done downloading chunk %s \n",chunkName);		
